@@ -1,8 +1,13 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 extern crate glfw;
 extern crate gl;
 extern crate rand;
 
 mod board;
+mod render;
+mod math;
 
 use glfw::{Action, Context, Key,WindowMode};
 use std::sync::mpsc::Receiver;
@@ -14,6 +19,7 @@ pub struct Game{
     glfw: glfw::Glfw,
     events: EventReciever,
     board: board::Board,
+    render_engine: render::Engine,
 }
 
 impl Game{
@@ -38,6 +44,7 @@ impl Game{
             glfw: glfw_temp,
             events: events,
             board: board::Board::new(),
+            render_engine: render::Engine::new(),
         }
     }
 
@@ -53,9 +60,11 @@ impl Game{
             for(_, event) in glfw::flush_messages(&self.events){
                 Game::handle_events(&mut self.board,&mut self.window, event);
             }
+            self.render_engine.render();
             self.window.swap_buffers();
         }
     }
+
 
     fn handle_events(board: &mut board::Board,win: &mut glfw::Window,event: glfw::WindowEvent){
         match event{
