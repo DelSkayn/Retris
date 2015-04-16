@@ -10,11 +10,12 @@ use gl;
 static VS_SOURCE: &'static str = "
 #version 330 
 layout (location = 0) in vec2 pos;
-uniform mat4 transform;
+uniform vec2 scale;
+uniform vec2 offset;
 uniform float depth = 0.5;
 
 void main(){
-    gl_Position = transform * vec4(pos,depth,1.0);
+    gl_Position = vec4(pos * scale + offset,depth,1.0) - vec4(1.0,1.0,0.0,0.0);
 }
 ";
 
@@ -27,11 +28,10 @@ void main(){
     color_out = vec4(color,1.0);
 }
 ";
-
-struct RenderObject{
-    color: math::Color,
-    scale: math::Vector2,
-    offset: math::Vector2,
+pub struct RenderObject{
+    pub color: math::Color,
+    pub scale: math::Vector2,
+    pub offset: math::Vector2,
 }
 
 
@@ -44,7 +44,8 @@ struct Mesh{
 
 struct Shader{
     program: GLuint,
-    transform_uni: GLint,
+    scale_uni: GLint,
+    offset_uni: GLint,
     color_uni: GLint,
     depth_uni: GLint,
 }
@@ -52,7 +53,6 @@ struct Shader{
 pub struct Engine{
     shader: Shader,
     mesh: Mesh,
-    transform:math::Matrix4,
     render_list: Vec<RenderObject>,
 }
 
@@ -146,7 +146,8 @@ impl Shader{
             Shader{
                 program: program,
                 color_uni: Shader::get_attrib_location(program,"color"),
-                transform_uni: Shader::get_attrib_location(program,"transform"),
+                scale_uni: Shader::get_attrib_location(program,"scale"),
+                offset_uni: Shader::get_attrib_location(program,"offset"),
                 depth_uni: Shader::get_attrib_location(program,"depth"),
             }
         }
@@ -190,24 +191,31 @@ impl Engine{
             shader: Shader::new(),            
             mesh: Mesh::new(),
             render_list: vec![RenderObject{
-                color: math::Color{r:0.0,g:0.0,b:0.0},
-                scale: math::Vector2{x:0.1,y:0.1},
-                offset: math::Vector2{x:0.1,y:0.1},
+                color: math::Color{r:1.0,g:0.0,b:0.0},
+                scale: math::Vector2{x:10.0,y:10.0},
+                offset: math::Vector2{x:10.0,y:10.0},
             }],
-            transform: math::Matrix4::to_ortho(0.0,800.0,0.0,600.0),
         }
     }
 
     pub fn render(&mut self){
         for i in 0..self.render_list.len() {
             let robj = &self.render_list[i];
-            let mut trans = math::Matrix4::copy(&self.transform);
-            trans.scale(&robj.scale);
-            trans.scale(&robj.offset);
             unsafe{
-                gl::UniformMatrix4fv(self.shader.transform_uni,0,gl::FALSE,&trans.m[0]);
+                gl::UseProgram(self.shader.program);
+                gl::Uniform2f(self.shader.scale_uni,robj.scale.x/400.0,robj.scale.y/300.0);
+                gl::Uniform2f(self.shader.offset_uni,robj.offset.x/400.0,robj.offset.y/300.0);
+                gl::Uniform3f(self.shader.color_uni,robj.color.r,robj.color.g,robj.color.b);
             }
             self.mesh.draw();
+            unsafe{
+                gl::UseProgram(0);
+            }
         }
+        self.render_list.clear();
+    }
+
+    pub fn add_render_obj(&mut self,robj: RenderObject){
+        self.render_list.push(robj);                
     }
 }

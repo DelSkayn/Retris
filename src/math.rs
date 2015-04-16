@@ -90,6 +90,15 @@ impl Matrix4{
         self.m[12]+=offset.x;
         self.m[13]+=offset.y;
     }
+
+    pub fn print (&self){
+        for i in 0..4{
+            for j in 0..4{
+                print!("{} ",self.m[i*4+j]);
+            }
+            println!("");
+        }
+    }
 }
 
 impl Mul for Matrix4{

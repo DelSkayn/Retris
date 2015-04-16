@@ -1,5 +1,6 @@
 use rand;
 
+
 pub struct Position{
     x: i32,
     y: i32,
@@ -7,51 +8,55 @@ pub struct Position{
 
 
 pub struct Board{
-    board_color: [i32; 104],
-    board_active: [bool; 104],
+    board_color: Vec<i32>,
+    board_active: Vec<bool>,
+    w:i32,
+    h:i32,
 }
 
 impl Board{
-    pub fn new() -> Board{
+    pub fn new(w:usize,h:usize) -> Board{
         Board{
-            board_color: [-1; 13*8],
-            board_active: [false; 13*8],
+            board_color: vec![-1; h*w],
+            board_active: vec![false; h*w],
+            w:w as i32,
+            h:h as i32,
         }
     }
 
     pub fn get_color(&self,x: i32,y : i32) -> i32{
-        if x < 0 || x > 7 || y < 0 || y > 12 {
+        if x < 0 || x > self.w -1 || y < 0 || y > self.h -1 {
             return -2;//-2 equals border
         }
-        self.board_color[(y*8+x) as usize]
+        self.board_color[(y*self.w+x) as usize]
     }
 
     pub fn get_active(&self,x: i32,y : i32) -> bool{
-        if x < 0 || x > 7 || y < 0 || y > 12 {
+        if x < 0 || x > self.w -1 || y < 0 || y > self.h -1 {
             return false;
         }
-        self.board_active[(y*8+x) as usize]
+        self.board_active[(y*self.w+x) as usize]
     }
 
     pub fn set_color(&mut self,x: i32,y : i32, value: i32) {
-        self.board_color[(y*8+x) as usize] = value;
+        self.board_color[(y*self.w+x) as usize] = value;
     }
 
     pub fn set_active(&mut self,x: i32,y : i32, value: bool){
-        self.board_active[(y*8+x) as usize] = value;
+        self.board_active[(y*self.w+x) as usize] = value;
     }
 
     pub fn print(&self){
         println!("Color: ");
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 print!(" {}",self.get_color(j,i));
             }
             println!("");
         }
         println!("Active: ");
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 print!(" {}",self.get_active(j,i));
             }
             println!("");
@@ -59,8 +64,8 @@ impl Board{
     }
 
     pub fn move_left(&mut self) -> bool{
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 if self.get_active(j,i) {
                     if self.get_color(j-1,i) != -1 && !self.get_active(j-1,i){
                         return false;
@@ -68,13 +73,13 @@ impl Board{
                 }
             }
         }
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 if self.get_active(j,i) {
-                    self.board_active[(i*8+j) as usize] = false;
-                    self.board_active[(i*8+j-1) as usize] = true;
-                    self.board_color[(i*8+j-1) as usize] = self.board_color[(i*8+j) as usize];
-                    self.board_color[(i*8+j) as usize] = -1;
+                    self.board_active[(i*self.w+j) as usize] = false;
+                    self.board_active[(i*self.w+j-1) as usize] = true;
+                    self.board_color[(i*self.w+j-1) as usize] = self.board_color[(i*self.w+j) as usize];
+                    self.board_color[(i*self.w+j) as usize] = -1;
                 }
             }
         }
@@ -82,8 +87,8 @@ impl Board{
     }
 
     pub fn move_right(&mut self) -> bool{
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 if self.get_active(j,i) {
                     if self.get_color(j+1,i) != -1 && !self.get_active(j+1,i){
                         return false;
@@ -91,13 +96,13 @@ impl Board{
                 }
             }
         }
-        for i in 0..13{
-            for j in (0..8).rev(){
+        for i in 0..self.h{
+            for j in (0..self.w).rev(){
                 if self.get_active(j,i) {
-                    self.board_active[(i*8+j) as usize] = false;
-                    self.board_active[(i*8+j+1) as usize] = true;
-                    self.board_color[(i*8+j+1) as usize] = self.board_color[(i*8+j) as usize];
-                    self.board_color[(i*8+j) as usize] = -1;
+                    self.board_active[(i*self.w+j) as usize] = false;
+                    self.board_active[(i*self.w+j+1) as usize] = true;
+                    self.board_color[(i*self.w+j+1) as usize] = self.board_color[(i*self.w+j) as usize];
+                    self.board_color[(i*self.w+j) as usize] = -1;
                 }
             }
         }
@@ -105,22 +110,28 @@ impl Board{
     }
 
     pub fn update(&mut self) -> bool{
-        for i in 0..13{
-            for j in 0..8{
+        for i in 0..self.h{
+            for j in 0..self.w{
                 if self.get_active(j,i) {
                     if self.get_color(j,i+1) != -1 && !self.get_active(j,i+1){
+                        for i in 0..self.h{
+                            for j in 0..self.w{
+                                self.set_active(j,i,false);
+                            }
+                        }
+                        self.add_shape(Shape::new_rand_shape());
                         return false;
                     }
                 }
             }
         }
-        for i in (0..13).rev(){
-            for j in 0..8{
+        for i in (0..self.h).rev(){
+            for j in 0..self.w{
                 if self.get_active(j,i) {
-                    self.board_active[(i*8+j) as usize] = false;
-                    self.board_active[((i+1)*8+j) as usize] = true;
-                    self.board_color[((i+1)*8+j) as usize] = self.board_color[(i*8+j) as usize];
-                    self.board_color[(i*8+j) as usize] = -1;
+                    self.board_active[(i*self.w+j) as usize] = false;
+                    self.board_active[((i+1)*self.w+j) as usize] = true;
+                    self.board_color[((i+1)*self.w+j) as usize] = self.board_color[(i*self.w+j) as usize];
+                    self.board_color[(i*self.w+j) as usize] = -1;
                 }
             }
         }
@@ -128,7 +139,7 @@ impl Board{
     }
 
     pub fn add_shape(&mut self,shape : Shape){
-        let color = (rand::random::<u16>() % 10) as i32 ;
+        let color = (rand::random::<u16>() % 7) as i32;
         for i in 0..4 {
             self.set_color(4+shape.blocks[i].x,1+shape.blocks[i].y,color);
             self.set_active(4+shape.blocks[i].x,1+shape.blocks[i].y,true);
@@ -198,7 +209,7 @@ impl Shape{
                 Position{x:0,y:0},
                 Position{x:0,y:1},
                 Position{x:1,y:0},
-                Position{x:1,y:1}],
+                Position{x:1,y:-1}],
             rotation: 0,
         }
     }
@@ -208,7 +219,7 @@ impl Shape{
                 Position{x:0,y:0},
                 Position{x:0,y:1},
                 Position{x:-1,y:0},
-                Position{x:-1,y:1}],
+                Position{x:-1,y:-1}],
             rotation: 0,
         }
     }
