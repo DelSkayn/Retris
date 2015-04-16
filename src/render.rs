@@ -8,18 +8,18 @@ use math;
 use gl;
 
 static VS_SOURCE: &'static str = "
-#version 330
+#version 330 
 layout (location = 0) in vec2 pos;
-uniform mat3 transform;
+uniform mat4 transform;
 uniform float depth = 0.5;
 
 void main(){
-    gl_Position = vec4(pos,depth,1.0);
+    gl_Position = transform * vec4(pos,depth,1.0);
 }
 ";
 
 static FS_SOURCE: &'static str = "
-#version 330
+#version 330 
 uniform vec3 color = vec3(1.0,1.0,1.0);
 out vec4 color_out;
 
@@ -30,9 +30,10 @@ void main(){
 
 struct RenderObject{
     color: math::Color,
-    transform: math::Matrix3,
+    scale: math::Vector2,
+    offset: math::Vector2,
 }
-    
+
 
 
 struct Mesh{
@@ -51,6 +52,7 @@ struct Shader{
 pub struct Engine{
     shader: Shader,
     mesh: Mesh,
+    transform:math::Matrix4,
     render_list: Vec<RenderObject>,
 }
 
@@ -63,11 +65,11 @@ impl Mesh{
             gl::GenBuffers(1,&mut ibo);
 
             let vertex_data: [f32; 8] = [0.0,0.0,
-                                         1.0,0.0,
-                                         1.0,1.0,
-                                         0.0,1.0,];
+            1.0,0.0,
+            1.0,1.0,
+            0.0,1.0,];
             let index_data: [u32; 6] = [0,1,2,
-                                         1,2,3];
+            0,2,3];
             gl::BindBuffer(gl::ARRAY_BUFFER,vbo);
             gl::BufferData(gl::ARRAY_BUFFER,8*4,mem::transmute(&vertex_data[0]),gl::STATIC_DRAW);
 
@@ -84,11 +86,13 @@ impl Mesh{
     pub fn draw(&self){
         unsafe{
             gl::BindBuffer(gl::ARRAY_BUFFER,self.vbo);
+            gl::EnableVertexAttribArray(0);
+            gl::VertexAttribPointer(0,2,gl::FLOAT,0,0,ptr::null());
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,self.ibo);
             gl::DrawElements(gl::TRIANGLES,self.size,gl::UNSIGNED_INT,mem::transmute(0i64));
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
             gl::BindBuffer(gl::ARRAY_BUFFER,0);
-        }
+        } 
     }
 }
 
@@ -141,8 +145,8 @@ impl Shader{
 
             Shader{
                 program: program,
-                transform_uni: Shader::get_attrib_location(program,"transform"),
                 color_uni: Shader::get_attrib_location(program,"color"),
+                transform_uni: Shader::get_attrib_location(program,"transform"),
                 depth_uni: Shader::get_attrib_location(program,"depth"),
             }
         }
@@ -187,13 +191,22 @@ impl Engine{
             mesh: Mesh::new(),
             render_list: vec![RenderObject{
                 color: math::Color{r:0.0,g:0.0,b:0.0},
-                transform: math::Matrix3::new(),
+                scale: math::Vector2{x:0.1,y:0.1},
+                offset: math::Vector2{x:0.1,y:0.1},
             }],
+            transform: math::Matrix4::to_ortho(0.0,800.0,0.0,600.0),
         }
     }
 
     pub fn render(&mut self){
         for i in 0..self.render_list.len() {
+            let robj = &self.render_list[i];
+            let mut trans = math::Matrix4::copy(&self.transform);
+            trans.scale(&robj.scale);
+            trans.scale(&robj.offset);
+            unsafe{
+                gl::UniformMatrix4fv(self.shader.transform_uni,0,gl::FALSE,&trans.m[0]);
+            }
             self.mesh.draw();
         }
     }
