@@ -110,8 +110,8 @@ impl Drop for Mesh{
 impl Shader{
     pub fn new()-> Shader{
         unsafe{
-            let mut vs = gl::CreateShader(gl::VERTEX_SHADER);
-            let mut fs = gl::CreateShader(gl::FRAGMENT_SHADER);
+            let vs = gl::CreateShader(gl::VERTEX_SHADER);
+            let fs = gl::CreateShader(gl::FRAGMENT_SHADER);
             let vs_src = CString::new(VS_SOURCE.as_bytes()).unwrap();
             let fs_src = CString::new(FS_SOURCE.as_bytes()).unwrap();
 
@@ -122,7 +122,7 @@ impl Shader{
             gl::CompileShader(fs);
             Shader::check_shader_error(fs);
 
-            let mut program : GLuint = gl::CreateProgram();
+            let program : GLuint = gl::CreateProgram();
             gl::AttachShader(program,fs);
             gl::AttachShader(program,vs);
             gl::LinkProgram(program);

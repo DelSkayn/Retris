@@ -9,6 +9,7 @@ mod board;
 mod render;
 mod math;
 
+use std::thread;
 use glfw::{Action, Context, Key,WindowMode};
 use std::sync::mpsc::Receiver;
 
@@ -23,6 +24,7 @@ pub struct Game{
     events: EventReciever,
     board: board::Board,
     render_engine: render::Engine,
+    update_now: bool,
 }
 
 impl Game{
@@ -48,10 +50,12 @@ impl Game{
             events: events,
             board: board::Board::new(BOARD_W,BOARD_H),
             render_engine: render::Engine::new(),
+            update_now: false,
         }
     }
 
     pub fn start(&mut self){
+        let mut update_itt = 0u32;
         self.window.make_current();
         println!("starting");
         while !self.window.should_close(){
@@ -61,14 +65,28 @@ impl Game{
             //handle events
             self.glfw.poll_events();
             for(_, event) in glfw::flush_messages(&self.events){
-                Game::handle_events(&mut self.board,&mut self.window, event);
+                Game::handle_events(&mut self.board,&mut self.update_now,&mut self.window, event);
+            }
+            update_itt+=1;
+            if update_itt > 60 {
+                update_itt = 0;
+                self.update_now = true;
+            }
+            if self.update_now {
+                if !self.board.update() {
+                    if self.board.check_rows() != 0{
+                        println!("Row Found");
+                    }
+                    self.board.add_shape(board::Shape::new_rand_shape());
+                }
+                self.update_now = false;
             }
             //update
             for i in 0..BOARD_H{
                 for j in 0..BOARD_W{
                     let color = self.board.get_color(j as i32,i as i32);
-                        let x = (20*BOARD_H - i*20) as f32;
-                        let y = (j*20) as f32;
+                        let x = ((20*BOARD_H - i*20)+10) as f32;
+                        let y = (j*20+10) as f32;
                         let rgb_color = match color {
                             0 => math::Color{r:1.0,g:0.0,b:0.0},
                             1 => math::Color{r:0.0,g:1.0,b:0.0},
@@ -82,30 +100,32 @@ impl Game{
                         };
                         self.render_engine.add_render_obj(render::RenderObject{
                             offset: math::Vector2{x:y,y:x},
-                            scale: if color == -1 {math::Vector2{x:5.0,y:5.0}} else {math::Vector2{x:20.0,y:20.0}},
+                            scale: math::Vector2{x:18.0,y:18.0},
                             color: rgb_color,
                         });
                 }
             }
             self.render_engine.render();
             self.window.swap_buffers();
+            thread::sleep_ms(16);
         }
     }
 
 
-    fn handle_events(board: &mut board::Board,win: &mut glfw::Window,event: glfw::WindowEvent){
+    fn handle_events(board: &mut board::Board,update_now:& mut bool,win: &mut glfw::Window,event: glfw::WindowEvent){
         match event{
             glfw::WindowEvent::Key(Key::Escape, _,Action::Press, _) => win.set_should_close(true),
             glfw::WindowEvent::Key(Key::Left, _,Action::Press, _) => {
-                println!("Left pressed");
                 board.move_left();
             },
             glfw::WindowEvent::Key(Key::Right, _,Action::Press, _) => {
-                println!("Right pressed: {}",board.move_right());
+                board.move_right();
             },
             glfw::WindowEvent::Key(Key::Down, _,Action::Press, _) => {
-                println!("Down pressed");
-                board.update();
+                *update_now = true;
+            },
+            glfw::WindowEvent::Key(Key::Up, _,Action::Press, _) => {
+                board.rotate();
             },
             glfw::WindowEvent::Key(Key::P, _,Action::Press, _) => {
                 board.print();
